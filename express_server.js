@@ -13,7 +13,7 @@ const bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({extended: true}));
 
 const generateRandomString = function() {
-  return Math.random().toString(32).substring(2, 5);
+  return Math.random().toString(32).substring(2, 7);
 };
 
 
@@ -43,7 +43,7 @@ app.get("/urls", (req, res) => {
 app.post("/urls", (req, res) => {
   const shortURL = generateRandomString();
   urlDatabase[shortURL] = req.body.longURL;
-  res.render(`/urls/${shortURL}`);
+  res.redirect(`/urls/${shortURL}`);
 });
 
 app.get("/u/:shortURL", (req, res) => {
@@ -51,14 +51,20 @@ app.get("/u/:shortURL", (req, res) => {
   res.redirect(longURL.longURL);
 });
 
-app.get("/urls/:shortURL", (req, res) => {
+app.get("/urls/:shortURL/edit", (req, res) => {
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
   res.render("urls_show", templateVars);
 });
 
-app.post("/urls/:shortURL/delete", (req, res) => {
+app.post("/urls/:shortURL/edit", (req, res) => {
   const shortURL = req.params.shortURL;
-  delete urlDatabase[shortURL];
+  const longURL = req.body.longURL;
+  urlDatabase[shortURL] = longURL;
+  res.redirect(`/urls`);
+});
+
+app.post("/urls/:shortURL/delete", (req, res) => {
+  delete urlDatabase[req.params.shortURL];
   res.redirect("/urls");
 });
 
