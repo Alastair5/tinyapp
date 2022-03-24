@@ -32,14 +32,18 @@ const users = {
 };
 
 // check if email is in database
-const checkEmail = function(database, email) {
+function checkEmail(database, email) {
   for (let user in database) {
     if (database[user].email === email) {
-      return email;
+      return database[user];
     }
   }
   return false;
 };
+
+// function addUser(users, email, password) {
+//   let
+// }
 
 
 
@@ -56,12 +60,12 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = { username: users[req.cookies["user_id"]]};
+  const templateVars = { username: users[req.cookies.user_id]};
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { username: users[req.cookies["user_id"]], urls: urlDatabase};
+  const templateVars = { username: users[req.cookies.user_id], urls: urlDatabase};
   res.render("urls_index", templateVars);
 });
 
@@ -94,14 +98,27 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-  const templateVars = { username: users[req.cookies["user_id"]]};
+  const templateVars = { username: users[req.cookies.user_id]};
   res.render("login", templateVars);
 });
 
 app.post("/login", (req, res) => {
   const templateVars = req.body["user_id"];
-  res.cookie("user_id", templateVars);
-  res.redirect("/urls");
+  let password = req.body.password;
+  let email = req.body.email;
+  let user = checkEmail(users, email);
+  if (user === false) {
+    res.status(403);
+    res.send("User does not exist");
+    return;
+  } else if (user.password !== password) {
+    res.status(403);
+    res.send("The password is not valid");
+    return;
+  } else {
+    res.cookie("user_id", user.id);
+    res.redirect("/urls");
+  }
 });
 
 app.post("/logout", (req, res) => {
@@ -110,30 +127,33 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  const templateVars = { username: users[req.cookies["user_id"]]};
+  const templateVars = { username: users[req.cookies.user_id]};
   res.render("register", templateVars);
 });
 
 // added errors for blank input and already registered
-app.post('/register', (req, res) => {
-  // if (checkEmail(users, req.body.email) !== false) {
-  //   res.status(400);
-  //   res.send("This email already exists");
-  //   return;
-  // }
-  // if (!req.body.email || !req.body.password) {
-  //   res.status(400);
-  //   res.send("The email or password was not valid");
-  //   return;
-  // }
-  const userID = generateRandomString();
-  users[userID] = {
-    id: userID,
-    email: req.body.email,
-    password: req.body.password
-  };
+app.post("/register", (req, res) => {
+  let password = req.body.password;
+  let email = req.body.email;
+  let userId = generateRandomString();
+  console.log("Anything");
+  if (checkEmail(users, email) !== false) {
+    res.status(400);
+    res.send("This email already exists");
+    return;
+  } else if (!email || !password) {
+    res.status(400);
+    res.send("The email or password was not valid");
+    return;
+  } else {
+    users[userId] = {
+      id: userId,
+      email: email,
+      password: password
+    };
+  }
   console.log(users);
-  res.cookie('user_id', userID);
+  res.cookie("user_id", userId);
   res.redirect('/urls');
 });
 
