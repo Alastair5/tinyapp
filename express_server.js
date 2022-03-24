@@ -8,6 +8,11 @@ const bodyParser = require("body-parser");
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }), cookie());
 
+//generate a new random ID
+const generateRandomString = function() {
+  return Math.random().toString(32).substring(2, 8);
+};
+
 const urlDatabase = {
   "b2xVn2": "http://www.lighthouselabs.ca",
   "9sm5xK": "http://www.google.com"
@@ -26,11 +31,15 @@ const users = {
   }
 };
 
-//generate a new random ID
-const generateRandomString = function() {
-  return Math.random().toString(32).substring(2, 8);
+// check if email is in database
+const checkEmail = function(database, email) {
+  for (let user in database) {
+    if (database[user].email === email) {
+      return email;
+    }
+  }
+  return false;
 };
-
 
 
 
@@ -86,12 +95,12 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 
 app.post("/login", (req, res) => {
   const value = req.body.username;
-  res.cookie("username", value);
+  res.cookie("user_id", value);
   res.redirect("/urls");
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("username");
+  res.clearCookie("user_id");
   res.redirect("/urls");
 });
 
@@ -100,7 +109,18 @@ app.get("/register", (req, res) => {
   res.render("register", templateVars);
 });
 
+// added errors for blank input and already registered
 app.post('/register', (req, res) => {
+  if (checkEmail(users, req.body.email) !== false) {
+    res.status(400);
+    res.send("This email already exists");
+    return;
+  }
+  if (!req.body.email || !req.body.password) {
+    res.status(400);
+    res.send("The email or password was not valid");
+    return;
+  }
   const userID = generateRandomString();
   users[userID] = {
     id: userID,
