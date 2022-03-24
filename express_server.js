@@ -1,12 +1,12 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
-const cookie = require("cookie-parser");
+const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 
 
 app.set("view engine", "ejs");
-app.use(bodyParser.urlencoded({ extended: true }), cookie());
+app.use(bodyParser.urlencoded({ extended: true }), cookieParser());
 
 //generate a new random ID
 const generateRandomString = function() {
@@ -56,12 +56,12 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = { username: users[req.cookies.user_id]};
+  const templateVars = { username: users[req.cookies["user_id"]]};
   res.render("urls_new", templateVars);
 });
 
 app.get("/urls", (req, res) => {
-  const templateVars = { username: users[req.cookies.user_id], urls: urlDatabase};
+  const templateVars = { username: users[req.cookies["user_id"]], urls: urlDatabase};
   res.render("urls_index", templateVars);
 });
 
@@ -93,9 +93,14 @@ app.post("/urls/:shortURL/delete", (req, res) => {
   res.redirect("/urls");
 });
 
+app.get("/login", (req, res) => {
+  const templateVars = { username: users[req.cookies["user_id"]]};
+  res.render("login", templateVars);
+});
+
 app.post("/login", (req, res) => {
-  const value = req.body.username;
-  res.cookie("user_id", value);
+  const templateVars = req.body["user_id"];
+  res.cookie("user_id", templateVars);
   res.redirect("/urls");
 });
 
@@ -105,22 +110,22 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  const templateVars = { username: users[req.cookies.user_id]};
+  const templateVars = { username: users[req.cookies["user_id"]]};
   res.render("register", templateVars);
 });
 
 // added errors for blank input and already registered
 app.post('/register', (req, res) => {
-  if (checkEmail(users, req.body.email) !== false) {
-    res.status(400);
-    res.send("This email already exists");
-    return;
-  }
-  if (!req.body.email || !req.body.password) {
-    res.status(400);
-    res.send("The email or password was not valid");
-    return;
-  }
+  // if (checkEmail(users, req.body.email) !== false) {
+  //   res.status(400);
+  //   res.send("This email already exists");
+  //   return;
+  // }
+  // if (!req.body.email || !req.body.password) {
+  //   res.status(400);
+  //   res.send("The email or password was not valid");
+  //   return;
+  // }
   const userID = generateRandomString();
   users[userID] = {
     id: userID,
