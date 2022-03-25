@@ -1,13 +1,20 @@
 const express = require("express");
 const app = express();
 const PORT = 8080; // default port 8080
-const cookieParser = require("cookie-parser");
+// const cookieParser = require("cookie-parser");
+const cookieSession = require("cookie-session");
 const bodyParser = require("body-parser");
 const bcrypt = require('bcryptjs');
 
 
 app.set("view engine", "ejs");
-app.use(bodyParser.urlencoded({ extended: true }), cookieParser());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieSession({
+  name: 'session',
+  keys: ['key'],
+  // Cookie Options
+  maxAge: 24 * 60 * 60 * 1000 // 24 hours
+}));
 
 //generate a new random ID
 const generateRandomString = function() {
@@ -17,11 +24,11 @@ const generateRandomString = function() {
 const urlDatabase = {
   b6UTxQ: {
     longURL: "https://www.tsn.ca",
-    userID: "user1"
+    userID: "userRandomID"
   },
   i3BoGr: {
     longURL: "https://www.google.ca",
-    userID: "user2"
+    userID: "user2RandomID"
   }
 };
 
@@ -84,8 +91,8 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id]};
-  const user = users[req.cookies.user_id];
+  const templateVars = { user: users[req.session.user_id]};
+  const user = users[req.session.user_id];
   if (user) {
     res.render("urls_new", templateVars);
   } else {
@@ -94,10 +101,7 @@ app.get("/urls/new", (req, res) => {
 });
 
 app.get("/urls", (req, res) => {
-  const userID = req.cookies.user_id;
-  // const user = users[userID];
-  // console.log("userID", userID);
-  // console.log("user", user);
+  const userID = req.session.user_id;
   if (!userID) {
     res.redirect("/login");
   }
@@ -108,7 +112,7 @@ app.get("/urls", (req, res) => {
 });
 
 app.post("/urls", (req, res) => {
-  const userID = req.cookies.user_id;
+  const userID = req.session.user_id;
   const shortURL = generateRandomString();
   urlDatabase[shortURL] = {userID: userID, longURL: req.body.longURL };
   res.redirect(`/urls/${shortURL}`);
@@ -123,14 +127,14 @@ app.get("/u/:shortURL", (req, res) => {
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id], shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL};
+  const templateVars = { user: users[req.session.user_id], shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL};
   res.render("urls_show", templateVars);
 });
 
 app.post("/urls/:shortURL/edit", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = req.body.longURL;
-  const loggedInUser = req.cookies.user_id;
+  const loggedInUser = req.session.user_id;
   if (!loggedInUser) {
     return res.status(401).res.send("Can not edit other people links!");
   }
@@ -140,7 +144,7 @@ app.post("/urls/:shortURL/edit", (req, res) => {
 
 app.post("/urls/:shortURL/delete", (req, res) => {
   const shortURL = req.params.shortURL;
-  if (urlDatabase[shortURL].userID === req.cookies.user_id) {
+  if (urlDatabase[shortURL].userID === req.session.user_id) {
     delete urlDatabase[shortURL];
     res.redirect("/urls");
   } else {
@@ -151,7 +155,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id]};
+  const templateVars = { user: users[req.session.user_id]};
   res.render("login", templateVars);
 });
 
@@ -163,13 +167,8 @@ app.post("/login", (req, res) => {
     res.status(403);
     res.send("User or password does not match");
     return;
-  } 
-  // else if (user.password !== password) {
-  //   res.status(403);
-  //   res.send("The password is not valid");
-  //   return;
-   else {
-    res.cookie("user_id", user.id);
+  } else {
+    req.session.user_id = user.id;
     res.redirect("/urls");
   }
 });
@@ -181,7 +180,7 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  const templateVars = { user: users[req.cookies.user_id]};
+  const templateVars = { user: users[req.session.user_id]};
   res.render("register", templateVars);
 });
 
@@ -203,7 +202,6 @@ app.post("/register", (req, res) => {
       id: user,
       email: email,
       password: password
-      // bcrypt.hashSync(password, 10)
     };
     console.log(users);
   }
