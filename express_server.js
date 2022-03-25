@@ -48,14 +48,12 @@ const checkEmail = function(database, email) {
   return false;
 };
 
-// const keys = Object.keys(urlDatabase);
 // view user created urls
 const urlsForUser = function(id) {
   const result = {};
   for (let shortURL in urlDatabase) {
-    const url = urlDatabase[shortURL];
-    if (url.userID === id) {
-      result[shortURL] = url;
+    if (urlDatabase[shortURL].userID === id) {
+      result[shortURL] = urlDatabase[shortURL].longURL;
     }
   }
   return result;
@@ -76,7 +74,7 @@ app.get("/hello", (req, res) => {
 });
 
 app.get("/urls/new", (req, res) => {
-  const templateVars = { username: users[req.cookies.user_id]};
+  const templateVars = { user: users[req.cookies.user_id]};
   const user = users[req.cookies.user_id];
   if (user) {
     res.render("urls_new", templateVars);
@@ -88,14 +86,15 @@ app.get("/urls/new", (req, res) => {
 app.get("/urls", (req, res) => {
   const userID = req.cookies.user_id;
   const user = users[userID];
-  if (user) {
-    const urls = urlsForUser(userID);
-    console.log("home", urls);
-    const templateVars = { username: users[req.cookies.user_id], urls: urls};
-    res.render("urls_index", templateVars);
-  } else {
+  console.log("userID", userID);
+  console.log("user", user);
+  if (!userID) {
     res.redirect("/login");
   }
+  const urls = urlsForUser(userID);
+  const templateVars = { urls: urls, user: users[req.cookies.user_id]};
+  console.log(templateVars);
+  res.render("urls_index", templateVars);
 });
 
 app.post("/urls", (req, res) => {
@@ -106,29 +105,43 @@ app.post("/urls", (req, res) => {
 });
 
 app.get("/u/:shortURL", (req, res) => {
-  const longURL = urlDatabase[req.params.shortURL].longURL;
-  res.redirect(longURL);
+  const longURL = urlDatabase[req.params.shortURL];
+  if (!longURL) {
+    res.status(404).send("You dont have access");
+  }
+  res.redirect(longURL.longURL);
 });
 
 app.get("/urls/:shortURL", (req, res) => {
-  const templateVars = { username: users[req.cookies.user_id], shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL};
+  const templateVars = { user: users[req.cookies.user_id], shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL};
   res.render("urls_show", templateVars);
 });
 
 app.post("/urls/:shortURL/edit", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = req.body.longURL;
-  urlDatabase[shortURL] = longURL;
-  res.redirect(`/urls`);
-});
-
-app.post("/urls/:shortURL/delete", (req, res) => {
-  delete urlDatabase[req.params.shortURL];
+  const loggedInUser = req.cookies.user_id;
+  if (!loggedInUser) {
+    return res.status(401).res.send("Can not edit other people links!");
+  }
+  urlDatabase[shortURL].longURL = longURL;
   res.redirect("/urls");
 });
 
+app.post("/urls/:shortURL/delete", (req, res) => {
+  const shortURL = req.params.shortURL;
+  if (urlDatabase[shortURL].userID === req.cookies.user_id) {
+    delete urlDatabase[shortURL];
+    res.redirect("/urls");
+  } else {
+    res.status(401);
+    res.send("Can not edit other people links!");
+    res.redirect("/login");
+  }
+});
+
 app.get("/login", (req, res) => {
-  const templateVars = { username: users[req.cookies.user_id]};
+  const templateVars = { user: users[req.cookies.user_id]};
   res.render("login", templateVars);
 });
 
@@ -156,7 +169,7 @@ app.post("/logout", (req, res) => {
 });
 
 app.get("/register", (req, res) => {
-  const templateVars = { username: users[req.cookies.user_id]};
+  const templateVars = { user: users[req.cookies.user_id]};
   res.render("register", templateVars);
 });
 
@@ -165,7 +178,6 @@ app.post("/register", (req, res) => {
   let password = req.body.password;
   let email = req.body.email;
   let userId = generateRandomString();
-  console.log("Anything");
   if (checkEmail(users, email) !== false) {
     res.status(400);
     res.send("This email already exists");
@@ -181,7 +193,6 @@ app.post("/register", (req, res) => {
       password: password
     };
   }
-  console.log(users);
   res.cookie("user_id", userId);
   res.redirect('/urls');
 });
