@@ -42,25 +42,11 @@ const users = {
 
 
 app.get("/", (req, res) => {
-  res.send("Hello!");
+  res.redirect("/login");
 });
 
 app.get("/urls.json", (req, res) => {
   res.json(urlDatabase);
-});
-
-app.get("/hello", (req, res) => {
-  res.send("<html><body>Hello <b>World</b></body></html>\n");
-});
-
-app.get("/urls/new", (req, res) => {
-  const templateVars = { user: users[req.session.user_id]};
-  const user = users[req.session.user_id];
-  if (user) {
-    res.render("urls_new", templateVars);
-  } else {
-    res.redirect("/login");
-  }
 });
 
 app.get("/urls", (req, res) => {
@@ -77,7 +63,17 @@ app.post("/urls", (req, res) => {
   const userID = req.session.user_id;
   const shortURL = generateRandomString();
   urlDatabase[shortURL] = {userID: userID, longURL: req.body.longURL };
-  res.redirect(`/urls/${shortURL}`);
+  res.redirect(`/urls`);
+});
+
+app.get("/urls/new", (req, res) => {
+  const templateVars = { user: users[req.session.user_id]};
+  const user = users[req.session.user_id];
+  if (user) {
+    res.render("urls_new", templateVars);
+  } else {
+    res.redirect("/login");
+  }
 });
 
 app.get("/u/:shortURL", (req, res) => {
@@ -98,7 +94,7 @@ app.post("/urls/:shortURL/edit", (req, res) => {
   const longURL = req.body.longURL;
   const loggedInUser = req.session.user_id;
   if (!loggedInUser) {
-    return res.status(401).res.send("Can not edit other people links!");
+    return res.status(401).res.send("Can not edit other people links");
   }
   urlDatabase[shortURL].longURL = longURL;
   res.redirect("/urls");
@@ -111,7 +107,7 @@ app.post("/urls/:shortURL/delete", (req, res) => {
     res.redirect("/urls");
   } else {
     res.status(401);
-    res.send("Can not edit other people links!");
+    res.send("Can not delete other people links");
     res.redirect("/login");
   }
 });
@@ -127,9 +123,10 @@ app.post("/login", (req, res) => {
   let user = getUserByEmail(users, email);
   if (!user || !bcrypt.compareSync(password, user.password)) {
     res.status(403);
-    res.send("User or password does not match");
+    res.send("Username or password does not match");
     return;
   } else {
+    // eslint-disable-next-line camelcase
     req.session.user_id = user.id;
     res.redirect("/urls");
   }
@@ -138,7 +135,6 @@ app.post("/login", (req, res) => {
 app.post("/logout", (req, res) => {
   res.clearCookie("session");
   res.cookie('session.sig');
-  // console.log(users);
   res.redirect("/urls");
 });
 
@@ -147,18 +143,13 @@ app.get("/register", (req, res) => {
   res.render("register", templateVars);
 });
 
-// added errors for blank input and already registered
 app.post("/register", (req, res) => {
   let password = bcrypt.hashSync(req.body.password, 10);
   let email = req.body.email;
   let user = generateRandomString();
-  if (getUserByEmail(users, email) !== undefined) {
+  if (getUserByEmail(users, email) !== undefined || !email || !password) {
     res.status(400);
-    res.send("This email already exists");
-    return;
-  } else if (!email || !password) {
-    res.status(400);
-    res.send("The email or password was not valid");
+    res.send("This email or password can nopt be used");
     return;
   } else {
     users[user] = {
@@ -166,7 +157,6 @@ app.post("/register", (req, res) => {
       email: email,
       password: password
     };
-    console.log(users);
   }
   res.cookie("user_id", user);
   res.redirect('/urls');
