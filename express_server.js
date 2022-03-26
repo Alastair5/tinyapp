@@ -87,7 +87,7 @@ app.get("/urls/new", (req, res) => {
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   if (!longURL) {
-    res.status(404).send("You dont have access");
+    res.status(404).send("You do not have access");
   }
   res.redirect(longURL.longURL);
 });
@@ -133,11 +133,11 @@ app.post("/login", (req, res) => {
   const email = req.body.email;
   const user = getUserByEmail(users, email);
   if (email === "" || password === "") {
-    res.send("test login");
+    res.send("Invalid email or password");
     return;
   }
   if (!user || !bcrypt.compareSync(password, user.password)) {
-    res.status(403).send("Username or password does not match");
+    res.status(403).send("Username/Password is not valid");
     return;
   } else {
     // eslint-disable-next-line camelcase
@@ -164,7 +164,7 @@ app.post("/register", (req, res) => {
   const email = req.body.email;
   const user = generateRandomString();
   if (email === "" || password === "") {
-    res.status(400).send("Please provide an email or password");
+    res.status(400).send("Please provide a valid email and password");
     return;
   }
   if (!getUserByEmail(users, email)) {
