@@ -53,6 +53,7 @@ app.get("/urls", (req, res) => {
   const userID = req.session.user_id;
   if (!userID) {
     res.redirect("/login");
+    return;
   }
   const urls = urlsForUser(userID, urlDatabase);
   const templateVars = { urls: urls, user: users[userID]};
@@ -118,9 +119,13 @@ app.get("/login", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  let password = req.body.password;
-  let email = req.body.email;
-  let user = getUserByEmail(users, email);
+  const password = req.body.password;
+  const email = req.body.email;
+  const user = getUserByEmail(users, email);
+  if (email === "" || password === "") {
+    res.send("test login");
+    return;
+  }
   if (!user || !bcrypt.compareSync(password, user.password)) {
     res.status(403);
     res.send("Username or password does not match");
@@ -144,22 +149,24 @@ app.get("/register", (req, res) => {
 });
 
 app.post("/register", (req, res) => {
-  let password = bcrypt.hashSync(req.body.password, 10);
-  let email = req.body.email;
-  let user = generateRandomString();
-  if (getUserByEmail(users, email) !== undefined || !email || !password) {
-    res.status(400);
-    res.send("This email or password can nopt be used");
+  let password = req.body.password;
+  const email = req.body.email;
+  const user = generateRandomString();
+  if (email === "" || password === "") {
+    res.status(400).send("Please provide an email or password");
     return;
-  } else {
+  }
+  if (!getUserByEmail(users, email)) {
+    password = bcrypt.hashSync(req.body.password, 10);
     users[user] = {
       id: user,
-      email: email,
-      password: password
+      email,
+      password
     };
+    req.session.user_id = user;
+    res.redirect('/urls');
   }
-  res.cookie("user_id", user);
-  res.redirect('/urls');
+  res.status(400).send("This email already exists");
 });
 
 app.listen(PORT, () => {
