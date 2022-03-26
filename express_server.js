@@ -1,10 +1,10 @@
 const express = require("express");
 const app = express();
-const PORT = 8080; // default port 8080
-// const cookieParser = require("cookie-parser");
+const PORT = 8080;
 const cookieSession = require("cookie-session");
 const bodyParser = require("body-parser");
 const bcrypt = require('bcryptjs');
+const { generateRandomString, getUserByEmail, urlsForUser } = require("./helpers");
 
 
 app.set("view engine", "ejs");
@@ -12,14 +12,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieSession({
   name: 'session',
   keys: ['key'],
-  // Cookie Options
+
   maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }));
-
-//generate a new random ID
-const generateRandomString = function() {
-  return Math.random().toString(32).substring(2, 8);
-};
 
 const urlDatabase = {
   b6UTxQ: {
@@ -31,7 +26,6 @@ const urlDatabase = {
     userID: "user2RandomID"
   }
 };
-
 
 const users = {
   "userRandomID": {
@@ -45,37 +39,6 @@ const users = {
     password: "dishwasher-funk"
   }
 };
-
-// check if email is in database
-const checkEmail = function(database, email) {
-  for (let user in database) {
-    if (database[user].email === email) {
-      return database[user];
-    }
-  }
-  return false;
-};
-
-// view user created urls
-const urlsForUser = function(id) {
-  const result = {};
-  for (let shortURL in urlDatabase) {
-    if (urlDatabase[shortURL].userID === id) {
-      result[shortURL] = urlDatabase[shortURL].longURL;
-    }
-  }
-  return result;
-};
-
-const findUser = function(users, email) {
-  for (let user in users) {
-    if (users[user].email === email) {
-      return users[user];
-    }
-  }
-  return null;
-};
-
 
 
 app.get("/", (req, res) => {
@@ -105,9 +68,8 @@ app.get("/urls", (req, res) => {
   if (!userID) {
     res.redirect("/login");
   }
-  const urls = urlsForUser(userID);
+  const urls = urlsForUser(userID, urlDatabase);
   const templateVars = { urls: urls, user: users[userID]};
-  console.log(templateVars);
   res.render("urls_index", templateVars);
 });
 
@@ -162,7 +124,7 @@ app.get("/login", (req, res) => {
 app.post("/login", (req, res) => {
   let password = req.body.password;
   let email = req.body.email;
-  let user = findUser(users, email);
+  let user = getUserByEmail(users, email);
   if (!user || !bcrypt.compareSync(password, user.password)) {
     res.status(403);
     res.send("User or password does not match");
@@ -174,8 +136,9 @@ app.post("/login", (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("user_id");
-  console.log(users);
+  res.clearCookie("session");
+  res.cookie('session.sig');
+  // console.log(users);
   res.redirect("/urls");
 });
 
@@ -189,7 +152,7 @@ app.post("/register", (req, res) => {
   let password = bcrypt.hashSync(req.body.password, 10);
   let email = req.body.email;
   let user = generateRandomString();
-  if (checkEmail(users, email) !== false) {
+  if (getUserByEmail(users, email) !== undefined) {
     res.status(400);
     res.send("This email already exists");
     return;
