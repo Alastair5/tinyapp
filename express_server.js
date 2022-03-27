@@ -58,7 +58,7 @@ app.get("/urls", (req, res) => {
   const urls = urlsForUser(userID, urlDatabase);
   const templateVars = { urls: urls, user: users[userID]};
   if (!userID) {
-    res.redirect("/login");
+    res.status(401).send("Please login or register");
     return;
   }
   res.render("urls_index", templateVars);
@@ -87,7 +87,7 @@ app.get("/urls/new", (req, res) => {
 app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   if (!longURL) {
-    res.status(404).send("You do not have access");
+    res.status(404).send("This URL does not exist");
   }
   res.redirect(longURL.longURL);
 });
@@ -95,7 +95,12 @@ app.get("/u/:shortURL", (req, res) => {
 // Show information about individual URLs
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { user: users[req.session.user_id], shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL};
-  res.render("urls_show", templateVars);
+  const user = users[req.session.user_id];
+  if (user === true) {
+    res.render("urls_show", templateVars);
+  } else {
+    res.status(401).send("Please login to view your URLs");
+  }
 });
 
 // Edit a URL if user is logged in or send an error
@@ -149,7 +154,7 @@ app.post("/login", (req, res) => {
 // Deletes session cookie and redirects to the URLs page
 app.post("/logout", (req, res) => {
   res.clearCookie("session");
-  res.redirect("/login");
+  res.redirect("/urls");
 });
 
 // Shows the registration page
