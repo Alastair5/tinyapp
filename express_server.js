@@ -88,6 +88,7 @@ app.get("/u/:shortURL", (req, res) => {
   const longURL = urlDatabase[req.params.shortURL];
   if (!longURL) {
     res.status(404).send("This URL does not exist");
+    return;
   }
   res.redirect(longURL.longURL);
 });
@@ -96,7 +97,7 @@ app.get("/u/:shortURL", (req, res) => {
 app.get("/urls/:shortURL", (req, res) => {
   const templateVars = { user: users[req.session.user_id], shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL].longURL};
   const user = users[req.session.user_id];
-  if (user === true) {
+  if (user) {
     res.render("urls_show", templateVars);
   } else {
     res.status(401).send("Please login to view your URLs");
@@ -107,8 +108,8 @@ app.get("/urls/:shortURL", (req, res) => {
 app.post("/urls/:shortURL/edit", (req, res) => {
   const shortURL = req.params.shortURL;
   const longURL = req.body.longURL;
-  const loggedInUser = req.session.user_id;
-  if (!loggedInUser) {
+  const user = req.session.user_id;
+  if (!user) {
     return res.status(401).res.send("Can not edit other people links");
   }
   urlDatabase[shortURL].longURL = longURL;
@@ -153,7 +154,7 @@ app.post("/login", (req, res) => {
 
 // Deletes session cookie and redirects to the URLs page
 app.post("/logout", (req, res) => {
-  res.clearCookie("session");
+  req.session = null;
   res.redirect("/urls");
 });
 
@@ -171,8 +172,7 @@ app.post("/register", (req, res) => {
   if (email === "" || password === "") {
     res.status(400).send("Please provide a valid email and password");
     return;
-  }
-  if (!getUserByEmail(users, email)) {
+  } else if (!getUserByEmail(users, email)) {
     password = bcrypt.hashSync(req.body.password, 10);
     users[user] = {
       id: user,
@@ -182,6 +182,8 @@ app.post("/register", (req, res) => {
     // eslint-disable-next-line camelcase
     req.session.user_id = user;
     res.redirect('/urls');
+  } else {
+    res.status(400).send("User already exits, please try again");
   }
 });
 
